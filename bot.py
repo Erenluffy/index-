@@ -21,7 +21,7 @@ logging.basicConfig(
 # -------------------------------
 API_ID = int(os.environ.get("API_ID", "22922577"))
 API_HASH = os.environ.get("API_HASH", "ff5513f0b7e10b92a940bd107e1ac32a")
-BOT_TOKEN = os.environ.get("BOT_TOKEN", "YOUR_BOT_TOKEN")
+BOT_TOKEN = os.environ.get("BOT_TOKEN", "8156690888:AAEMBoNHIUc5bNEqsICBk2X66WMhafsHeJg")
 INDEX_CHANNEL = "https://t.me/Animes2u_Index"
 
 # -------------------------------
