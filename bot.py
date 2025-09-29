@@ -1,5 +1,4 @@
 
-
 import os
 import re
 import string
@@ -194,10 +193,10 @@ anime_index = [
 
 
 # -------------------------------
-# Normalize function for fast lookup
+# Normalize function
 # -------------------------------
-def normalize(text: str) -> str:
-    return re.sub(rf"[{string.punctuation}]", "", text.lower().strip())
+def normalize(text):
+    return re.sub(r"[{}]".format(re.escape(string.punctuation)), "", text.lower().strip())
 
 anime_lookup = {normalize(name): name for name in anime_index}
 
@@ -209,7 +208,7 @@ app = Client(
     api_id=API_ID,
     api_hash=API_HASH,
     bot_token=BOT_TOKEN,
-    workers=3  # handle multiple messages concurrently
+    workers=3
 )
 
 INDEX_BUTTON = InlineKeyboardMarkup(
@@ -223,11 +222,7 @@ INDEX_BUTTON = InlineKeyboardMarkup(
 async def index_checker(client, message):
     try:
         text = normalize(message.text)
-        found_animes = []
-
-        for key, original in anime_lookup.items():
-            if key in text:
-                found_animes.append(original)
+        found_animes = [original for key, original in anime_lookup.items() if key in text]
 
         if found_animes:
             reply_text = "✅ **Anime Found in Index:**\n\n" + "\n".join(found_animes)
@@ -247,7 +242,6 @@ async def index_checker(client, message):
 @app.on_message(filters.private & filters.command("index"))
 async def show_index(client, message):
     try:
-        # split index into chunks if too long
         chunk_size = 50
         for i in range(0, len(anime_index), chunk_size):
             chunk = anime_index[i:i + chunk_size]
@@ -259,7 +253,7 @@ async def show_index(client, message):
         logging.error(f"Unexpected error: {e}")
 
 # -------------------------------
-# Main loop
+# Start bot
 # -------------------------------
 if __name__ == "__main__":
     logging.info("Bot is starting...")
