@@ -1,34 +1,17 @@
-import os
-import re
-import hashlib
+
+#!/usr/bin/env python3
 import logging
-import asyncio
-from pyrogram import Client, filters, idle
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from pyrogram.errors import FloodWait, RPCError
+import re
+import os
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
 
-# -------------------------------
-# Setup logging
-# -------------------------------
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+# Use ONLY ONE bot token - choose either:
+BOT_TOKEN = os.getenv("BOT_TOKEN", "7859842889:AAFSn3HZFBRe48MR9LnndoVrX4WCQeo2Ulg")  # python-telegram-bot
+# OR
+# BOT_TOKEN = os.getenv("BOT_TOKEN", "8156690888:AAEMBoNHIUc5bNEqsICBk2X66WMhafsHeJg")  # Pyrogram
 
-# -------------------------------
-# Config from Environment Variables (for Koyeb)
-# -------------------------------
-API_ID = int(os.environ.get("API_ID", "22922577"))
-API_HASH = os.environ.get("API_HASH", "ff5513f0b7e10b92a940bd107e1ac32a")
-BOT_TOKEN = os.environ.get("BOT_TOKEN", "8156690888:AAEMBoNHIUc5bNEqsICBk2X66WMhafsHeJg")
-
-# Your Anime Index Channel
-INDEX_CHANNEL = os.environ.get("INDEX_CHANNEL", "https://t.me/Animes2u_Index")
-
-# -------------------------------
-# Anime Index Data
-# -------------------------------
+# Your anime index
 anime_index = [
     # A
     "A Condition Called Love", "A Couple of Cuckoos", "A Salad Bowl of Eccentrics", 
@@ -197,133 +180,87 @@ anime_index = [
     "4 Cut Hero", "5 Centimeters per Second", "91 Days"
 ]
 
-# -------------------------------
-# Bot Setup with web_server for Koyeb
-# -------------------------------
 
-# Generate unique session name based on bot token
-session_hash = hashlib.md5(BOT_TOKEN.encode()).hexdigest()[:10]
-session_name = f"anime_bot_{session_hash}"
+INDEX_CHANNEL = "https://t.me/Animes2u_Index"
 
-app = Client(
-    session_name,  # Unique for each bot
-    api_id=API_ID, 
-    api_hash=API_HASH, 
-    bot_token=BOT_TOKEN,
-    in_memory=True,  # Important for Koyeb
-    sleep_threshold=30
+# Logging
+logging.basicConfig(
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    level=logging.INFO
 )
+logger = logging.getLogger(__name__)
 
-# -------------------------------
-# Group message handler
-# -------------------------------
-@app.on_message(filters.group & filters.text)
-async def index_checker(client, message):
-    try:
-        text = message.text.strip()
-        
-        # Skip if message is too short
-        if len(text) < 3:
-            return
+class AnimeIndexBot:
+    def __init__(self):
+        self.application = Application.builder().token(BOT_TOKEN).build()
+        self.setup_handlers()
 
-        # Inline button for Index
-        buttons = InlineKeyboardMarkup(
-            [[InlineKeyboardButton("🌸 Open Anime Index", url=INDEX_CHANNEL)]]
+    async def start_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        await update.message.reply_text(
+            "🤖 **Anime Index Bot**\n\n"
+            "I can check if anime titles are in our index! "
+            "Add me to your group and I'll automatically check messages for anime titles.",
+            parse_mode='HTML',
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("🌸 Open Anime Index", url=INDEX_CHANNEL)
+            ]])
         )
 
-        found_anime = None
-        for anime in anime_index:
-            # More flexible matching with word boundaries
-            pattern = rf'\b{re.escape(anime)}\b'
-            if re.search(pattern, text, re.IGNORECASE):
-                found_anime = anime
-                break
-
-        if found_anime:
-            await message.reply_text(
-                f"✅ **{found_anime}** is in the index!",
-                reply_markup=buttons,
-                reply_to_message_id=message.id
-            )
-        else:
-            await message.reply_text(
-                "🌀 Verify in index.",
-                reply_markup=buttons,
-                reply_to_message_id=message.id
-            )
+    async def check_anime_index(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Check if message contains anime from index"""
+        try:
+            text = update.message.text.strip()
             
-    except FloodWait as e:
-        logger.warning(f"Flood wait: {e.x} seconds")
-        await asyncio.sleep(e.x)
-    except RPCError as e:
-        logger.error(f"RPC Error: {e}")
-    except Exception as e:
-        logger.error(f"Unexpected error: {e}")
+            if len(text) < 3:
+                return
 
-# -------------------------------
-# Start command handler
-# -------------------------------
-@app.on_message(filters.command("start") & filters.private)
-async def start_command(client, message):
-    await message.reply_text(
-        "🤖 **Anime Index Bot**\n\n"
-        "I can check if anime titles are in our index! "
-        "Add me to your group and I'll automatically check messages for anime titles.",
-        reply_markup=InlineKeyboardMarkup([[
-            InlineKeyboardButton("🌸 Open Anime Index", url=INDEX_CHANNEL)
-        ]])
-    )
+            buttons = InlineKeyboardMarkup([
+                [InlineKeyboardButton("🌸 Open Anime Index", url=INDEX_CHANNEL)]
+            ])
 
-# -------------------------------
-# Health check endpoint for Koyeb
-# -------------------------------
-from aiohttp import web
+            found_anime = None
+            for anime in ANIME_INDEX:
+                pattern = rf'\b{re.escape(anime)}\b'
+                if re.search(pattern, text, re.IGNORECASE):
+                    found_anime = anime
+                    break
 
-async def health_check(request):
-    return web.Response(text="Bot is running!")
+            if found_anime:
+                await update.message.reply_text(
+                    f"✅ **{found_anime}** is in the index!",
+                    reply_markup=buttons,
+                    parse_mode='HTML'
+                )
+            else:
+                await update.message.reply_text(
+                    "🌀 Verify in index.",
+                    reply_markup=buttons
+                )
+                
+        except Exception as e:
+            logger.error(f"Error: {e}")
 
-def setup_health_check():
-    app = web.Application()
-    app.router.add_get('/', health_check)
-    return app
+    def setup_handlers(self):
+        self.application.add_handler(CommandHandler("start", self.start_command))
+        self.application.add_handler(MessageHandler(filters.TEXT & filters.ChatType.GROUPS, self.check_anime_index))
 
-# -------------------------------
-# Main function for Koyeb
-# -------------------------------
-async def main():
-    await app.start()
-    
-    # Get bot info to verify connection
-    bot_info = await app.get_me()
-    logger.info(f"Bot started successfully: @{bot_info.username}")
-    
-    # Setup web server for health checks
-    web_app = setup_health_check()
-    runner = web.AppRunner(web_app)
-    await runner.setup()
-    
-    # Use PORT environment variable for Koyeb
-    port = int(os.environ.get("PORT", 6000))
-    site = web.TCPSite(runner, "0.0.0.0", port)
-    await site.start()
-    
-    logger.info(f"Health check server running on port {port}")
-    
-    # Keep the bot running
-    await idle()
-    
-    await app.stop()
+    def run(self):
+        """Run the bot with conflict prevention"""
+        logger.info("Starting Anime Index Bot...")
+        
+        # Add conflict prevention
+        self.application.run_polling(
+            allowed_updates=Update.ALL_TYPES,
+            drop_pending_updates=True,  # Important: drop pending updates
+            close_loop=False
+        )
 
-if __name__ == "__main__":
-    # Create a single event loop to prevent multiple instances
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    
+def main():
     try:
-        loop.run_until_complete(main())
-    except KeyboardInterrupt:
-        logger.info("Bot stopped by user")
+        bot = AnimeIndexBot()
+        bot.run()
     except Exception as e:
         logger.error(f"Bot crashed: {e}")
-    finally:
-        loop.close()
+
+if __name__ == '__main__':
+    main()
