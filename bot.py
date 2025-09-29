@@ -1,8 +1,8 @@
-
 import os
 import re
 import logging
-from pyrogram import Client, filters
+import asyncio
+from pyrogram import Client, filters, idle
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from pyrogram.errors import FloodWait, RPCError
 
@@ -197,13 +197,14 @@ anime_index = [
 ]
 
 # -------------------------------
-# Bot Setup
+# Bot Setup with web_server for Koyeb
 # -------------------------------
 app = Client(
     "anime_index_bot", 
     api_id=API_ID, 
     api_hash=API_HASH, 
     bot_token=BOT_TOKEN,
+    in_memory=True,  # Important for Koyeb
     sleep_threshold=30
 )
 
@@ -268,18 +269,55 @@ async def start_command(client, message):
     )
 
 # -------------------------------
+# Health check endpoint for Koyeb
+# -------------------------------
+from aiohttp import web
+
+async def health_check(request):
+    return web.Response(text="Bot is running!")
+
+def setup_health_check():
+    app = web.Application()
+    app.router.add_get('/', health_check)
+    return app
+
+# -------------------------------
 # Main function for Koyeb
 # -------------------------------
+async def main():
+    await app.start()
+    
+    # Get bot info to verify connection
+    bot_info = await app.get_me()
+    logger.info(f"Bot started successfully: @{bot_info.username}")
+    
+    # Setup web server for health checks
+    web_app = setup_health_check()
+    runner = web.AppRunner(web_app)
+    await runner.setup()
+    
+    # Use PORT environment variable for Koyeb
+    port = int(os.environ.get("PORT", 8004))
+    site = web.TCPSite(runner, "0.0.0.0", port)
+    await site.start()
+    
+    logger.info(f"Health check server running on port {port}")
+    
+    # Keep the bot running
+    await idle()
+    
+    await app.stop()
+
 if __name__ == "__main__":
-    logger.info("Starting Anime Index Bot...")
+    # Create a single event loop to prevent multiple instances
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
     
     try:
-        # Get bot info to verify connection
-        bot_info = app.get_me()
-        logger.info(f"Bot started successfully: @{bot_info.username}")
-        
-        # Run the bot
-        app.run()
-        
+        loop.run_until_complete(main())
+    except KeyboardInterrupt:
+        logger.info("Bot stopped by user")
     except Exception as e:
-        logger.error(f"Failed to start bot: {e}")
+        logger.error(f"Bot crashed: {e}")
+    finally:
+        loop.close()
