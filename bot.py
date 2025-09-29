@@ -16,9 +16,6 @@ logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
-# -------------------------------
-# Config (Koyeb env variables)
-# -------------------------------
 API_ID = int(os.environ.get("API_ID", "22922577"))
 API_HASH = os.environ.get("API_HASH", "ff5513f0b7e10b92a940bd107e1ac32a")
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "8156690888:AAEMBoNHIUc5bNEqsICBk2X66WMhafsHeJg")
@@ -195,6 +192,7 @@ anime_index = [
     "4 Cut Hero", "5 Centimeters per Second", "91 Days"
 ]
 
+
 # -------------------------------
 # Normalize function for fast lookup
 # -------------------------------
@@ -261,15 +259,11 @@ async def show_index(client, message):
         logging.error(f"Unexpected error: {e}")
 
 # -------------------------------
-# Keep bot running 24/7 with auto-reconnect
+# Main loop
 # -------------------------------
 def main():
     logging.info("Bot is starting...")
-    while True:
-        try:
-            app.run()
-        except Exception as e:
-            logging.error(f"Bot crashed with error: {e}. Restarting...")
+    app.run()  # ✅ Pyrogram handles reconnecting internally
 
 if __name__ == "__main__":
     main()
