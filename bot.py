@@ -261,9 +261,6 @@ async def show_index(client, message):
 # -------------------------------
 # Main loop
 # -------------------------------
-def main():
-    logging.info("Bot is starting...")
-    app.run()  # ✅ Pyrogram handles reconnecting internally
-
 if __name__ == "__main__":
-    main()
+    logging.info("Bot is starting...")
+    app.run()
