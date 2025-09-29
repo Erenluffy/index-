@@ -1,17 +1,31 @@
 
-#!/usr/bin/env python3
-import logging
+from pyrogram import Client, filters
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 import re
 import os
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
+import logging
+import asyncio
 
-# Use ONLY ONE bot token - choose either:
-BOT_TOKEN = os.getenv("BOT_TOKEN", "7859842889:AAFSn3HZFBRe48MR9LnndoVrX4WCQeo2Ulg")  # python-telegram-bot
-# OR
-# BOT_TOKEN = os.getenv("BOT_TOKEN", "8156690888:AAEMBoNHIUc5bNEqsICBk2X66WMhafsHeJg")  # Pyrogram
+# -------------------------------
+# Setup logging
+# -------------------------------
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
-# Your anime index
+# -------------------------------
+# Config
+# -------------------------------
+API_ID = int(os.environ.get("API_ID", "22922577"))
+API_HASH = os.environ.get("API_HASH", "ff5513f0b7e10b92a940bd107e1ac32a"))
+BOT_TOKEN = os.environ.get("BOT_TOKEN", "8156690888:AAEMBoNHIUc5bNEqsICBk2X66WMhafsHeJg")
+INDEX_CHANNEL = os.environ.get("INDEX_CHANNEL", "https://t.me/Animes2u_Index")
+
+# -------------------------------
+# Anime Index Data
+# -------------------------------
 anime_index = [
     # A
     "A Condition Called Love", "A Couple of Cuckoos", "A Salad Bowl of Eccentrics", 
@@ -183,84 +197,87 @@ anime_index = [
 
 INDEX_CHANNEL = "https://t.me/Animes2u_Index"
 
-# Logging
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO
+# -------------------------------
+# Bot Setup
+# -------------------------------
+app = Client(
+    "anime_index_bot_single",  # Unique session name
+    api_id=API_ID, 
+    api_hash=API_HASH, 
+    bot_token=BOT_TOKEN,
+    in_memory=True
 )
-logger = logging.getLogger(__name__)
 
-class AnimeIndexBot:
-    def __init__(self):
-        self.application = Application.builder().token(BOT_TOKEN).build()
-        self.setup_handlers()
-
-    async def start_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        await update.message.reply_text(
-            "🤖 **Anime Index Bot**\n\n"
-            "I can check if anime titles are in our index! "
-            "Add me to your group and I'll automatically check messages for anime titles.",
-            parse_mode='HTML',
-            reply_markup=InlineKeyboardMarkup([[
-                InlineKeyboardButton("🌸 Open Anime Index", url=INDEX_CHANNEL)
-            ]])
-        )
-
-    async def check_anime_index(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Check if message contains anime from index"""
-        try:
-            text = update.message.text.strip()
-            
-            if len(text) < 3:
-                return
-
-            buttons = InlineKeyboardMarkup([
-                [InlineKeyboardButton("🌸 Open Anime Index", url=INDEX_CHANNEL)]
-            ])
-
-            found_anime = None
-            for anime in ANIME_INDEX:
-                pattern = rf'\b{re.escape(anime)}\b'
-                if re.search(pattern, text, re.IGNORECASE):
-                    found_anime = anime
-                    break
-
-            if found_anime:
-                await update.message.reply_text(
-                    f"✅ **{found_anime}** is in the index!",
-                    reply_markup=buttons,
-                    parse_mode='HTML'
-                )
-            else:
-                await update.message.reply_text(
-                    "🌀 Verify in index.",
-                    reply_markup=buttons
-                )
-                
-        except Exception as e:
-            logger.error(f"Error: {e}")
-
-    def setup_handlers(self):
-        self.application.add_handler(CommandHandler("start", self.start_command))
-        self.application.add_handler(MessageHandler(filters.TEXT & filters.ChatType.GROUPS, self.check_anime_index))
-
-    def run(self):
-        """Run the bot with conflict prevention"""
-        logger.info("Starting Anime Index Bot...")
-        
-        # Add conflict prevention
-        self.application.run_polling(
-            allowed_updates=Update.ALL_TYPES,
-            drop_pending_updates=True,  # Important: drop pending updates
-            close_loop=False
-        )
-
-def main():
+# -------------------------------
+# Group message handler
+# -------------------------------
+@app.on_message(filters.group & filters.text)
+async def index_checker(client, message):
     try:
-        bot = AnimeIndexBot()
-        bot.run()
+        text = message.text.strip()
+        
+        if len(text) < 3:
+            return
+
+        buttons = InlineKeyboardMarkup(
+            [[InlineKeyboardButton("🌸 Open Anime Index", url=INDEX_CHANNEL)]]
+        )
+
+        found_anime = None
+        for anime in anime_index:
+            pattern = rf'\b{re.escape(anime)}\b'
+            if re.search(pattern, text, re.IGNORECASE):
+                found_anime = anime
+                break
+
+        if found_anime:
+            await message.reply_text(
+                f"✅ **{found_anime}** is in the index!",
+                reply_markup=buttons,
+                reply_to_message_id=message.id
+            )
+        else:
+            await message.reply_text(
+                "🌀 Verify in index.",
+                reply_markup=buttons,
+                reply_to_message_id=message.id
+            )
+            
+    except Exception as e:
+        logger.error(f"Error: {e}")
+
+# -------------------------------
+# Start command handler
+# -------------------------------
+@app.on_message(filters.command("start") & filters.private)
+async def start_command(client, message):
+    await message.reply_text(
+        "🤖 **Anime Index Bot**\n\n"
+        "I can check if anime titles are in our index! "
+        "Add me to your group and I'll automatically check messages for anime titles.",
+        reply_markup=InlineKeyboardMarkup([[
+            InlineKeyboardButton("🌸 Open Anime Index", url=INDEX_CHANNEL)
+        ]])
+    )
+
+# -------------------------------
+# Main function
+# -------------------------------
+async def main():
+    await app.start()
+    logger.info("Bot started successfully!")
+    
+    # Get bot info
+    bot_info = await app.get_me()
+    logger.info(f"Bot: @{bot_info.username}")
+    
+    # Keep running
+    await idle()
+
+if __name__ == "__main__":
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        logger.info("Bot stopped by user")
     except Exception as e:
         logger.error(f"Bot crashed: {e}")
-
-if __name__ == '__main__':
-    main()
