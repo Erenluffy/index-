@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 # Config
 # -------------------------------
 API_ID = int(os.environ.get("API_ID", "22922577"))
-API_HASH = os.environ.get("API_HASH", "ff5513f0b7e10b92a940bd107e1ac32a"))
+API_HASH = os.environ.get("API_HASH", "ff5513f0b7e10b92a940bd107e1ac32a")
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "8156690888:AAEMBoNHIUc5bNEqsICBk2X66WMhafsHeJg")
 INDEX_CHANNEL = os.environ.get("INDEX_CHANNEL", "https://t.me/Animes2u_Index")
 
