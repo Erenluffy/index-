@@ -303,7 +303,7 @@ async def main():
     await runner.setup()
     
     # Use PORT environment variable for Koyeb
-    port = int(os.environ.get("PORT", 8004))
+    port = int(os.environ.get("PORT", 6000))
     site = web.TCPSite(runner, "0.0.0.0", port)
     await site.start()
     
