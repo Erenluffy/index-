@@ -1,5 +1,6 @@
 import os
 import re
+import hashlib
 import logging
 import asyncio
 from pyrogram import Client, filters, idle
@@ -199,8 +200,13 @@ anime_index = [
 # -------------------------------
 # Bot Setup with web_server for Koyeb
 # -------------------------------
+
+# Generate unique session name based on bot token
+session_hash = hashlib.md5(BOT_TOKEN.encode()).hexdigest()[:10]
+session_name = f"anime_bot_{session_hash}"
+
 app = Client(
-    "anime_index_bot", 
+    session_name,  # Unique for each bot
     api_id=API_ID, 
     api_hash=API_HASH, 
     bot_token=BOT_TOKEN,
